@@ -1,27 +1,49 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { lovable } from "@/integrations/lovable/index";
+import { supabase } from "@/integrations/supabase/client";
 
 export function SocialButtons({ redirectPath = "/dashboard" }: { redirectPath?: string }) {
   const [loading, setLoading] = useState<string | null>(null);
 
+  /** Google — routed through Supabase OAuth directly */
   const google = async () => {
     setLoading("google");
     try {
       sessionStorage.setItem("sentinel:redirect", redirectPath);
-      // Return the user to where they started (e.g. an OAuth consent request),
-      // not just the app origin.
-      const returnTo = new URL(redirectPath, window.location.origin);
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri:
-          returnTo.origin === window.location.origin ? returnTo.toString() : window.location.origin,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
       });
-      if (result.error) {
-        toast.error("Google sign-in failed. Please try again.");
-        return;
+      if (error) {
+        toast.error("Google sign-in failed: " + error.message);
       }
-      if (result.redirected) return;
-      window.location.href = redirectPath;
+    } catch (err) {
+      toast.error("Google sign-in failed. Please try again.");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  /** GitHub — routed through Supabase OAuth directly */
+  const github = async () => {
+    setLoading("github");
+    try {
+      sessionStorage.setItem("sentinel:redirect", redirectPath);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "github",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          scopes: "read:user user:email read:org",
+        },
+      });
+      if (error) {
+        toast.error("GitHub sign-in failed: " + error.message);
+      }
+      // Supabase redirects the browser automatically — browser leaves the page here
+    } catch (err) {
+      toast.error("GitHub sign-in failed. Please try again.");
     } finally {
       setLoading(null);
     }
@@ -54,17 +76,14 @@ export function SocialButtons({ redirectPath = "/dashboard" }: { redirectPath?: 
       </button>
       <button
         type="button"
-        onClick={() =>
-          toast("GitHub sign-in is coming soon", {
-            description: "Use Google or email for now — GitHub SSO is on the roadmap.",
-          })
-        }
-        className="glass inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors hover:border-brand-blue/50"
+        onClick={github}
+        disabled={loading !== null}
+        className="glass inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors hover:border-brand-blue/50 disabled:opacity-60"
       >
         <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
           <path d="M12 2a10 10 0 00-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.1-1.47-1.1-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.36 1.09 2.94.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.5 9.5 0 015 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0012 2z" />
         </svg>
-        GitHub
+        {loading === "github" ? "Connecting…" : "GitHub"}
       </button>
     </div>
   );

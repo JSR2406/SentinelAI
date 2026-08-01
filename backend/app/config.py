@@ -37,9 +37,21 @@ class Settings(BaseSettings):
     SUPABASE_JWT_SECRET: str = os.getenv("SUPABASE_JWT_SECRET", "super-secret-supabase-jwt-key-sentinelai-2026")
     JWT_ALGORITHM: str = "HS256"
     
-    # OpenAI / AI Service
+    # AI / LLM Configuration
+    # LLM_PROVIDER: "gemini" | "openrouter" | "openai" | "auto" (default: auto)
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "auto")
+
+    # OpenAI
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o")
+
+    # Google Gemini (free tier available via AIStudio key)
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+
+    # OpenRouter (routes to many providers incl. Gemini, Claude, Llama)
+    OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
+    OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "google/gemini-2.5-flash")
     
     # GitHub OAuth
     GITHUB_CLIENT_ID: str = os.getenv("GITHUB_CLIENT_ID", "")

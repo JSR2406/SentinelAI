@@ -10,7 +10,7 @@ SentinelAI Backend is designed around an event-driven microservice pattern to pe
 
 ```
                   +--------------------------+
-                  |    Frontend (Lovable)    |
+                  | Frontend (React / TanStack) |
                   +------------+-------------+
                                |
                         Bearer JWT Auth
