@@ -13,6 +13,70 @@ logger = logging.getLogger(__name__)
 # Prompt Caching in memory
 _PROMPT_CACHE: Dict[str, AIChatResponse] = {}
 
+
+def _call_llm(system_prompt: str, user_prompt: str) -> Optional[str]:
+    """Tries OpenAI → Gemini → OpenRouter in order. Returns None if all unavailable."""
+
+    # 1. OpenAI
+    if settings.OPENAI_API_KEY:
+        try:
+            import openai
+            client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+            completion = client.chat.completions.create(
+                model=settings.OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.2
+            )
+            return completion.choices[0].message.content
+        except Exception as e:
+            logger.warning(f"OpenAI call failed: {e}")
+
+    # 2. Google Gemini (free tier)
+    if settings.GEMINI_API_KEY:
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=settings.GEMINI_API_KEY)
+            model = genai.GenerativeModel(
+                settings.GEMINI_MODEL,
+                system_instruction=system_prompt
+            )
+            resp = model.generate_content(user_prompt)
+            return resp.text
+        except Exception as e:
+            logger.warning(f"Gemini call failed: {e}")
+
+    # 3. OpenRouter (many providers via one key)
+    if settings.OPENROUTER_API_KEY:
+        try:
+            import httpx
+            resp = httpx.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+                    "HTTP-Referer": "https://sentinelai.io",
+                    "X-Title": "SentinelAI Security Copilot",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.OPENROUTER_MODEL,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    "temperature": 0.2
+                },
+                timeout=30.0
+            )
+            return resp.json()["choices"][0]["message"]["content"]
+        except Exception as e:
+            logger.warning(f"OpenRouter call failed: {e}")
+
+    return None
+
+
 class AIService:
 
     @staticmethod
@@ -47,23 +111,9 @@ class AIService:
 
         user_prompt = f"Issue Context:\n{issue_ctx}\n\nUser Question: {req.message}"
 
-        # Attempt call to OpenAI API if key available
-        response_text = None
-        if settings.OPENAI_API_KEY:
-            try:
-                import openai
-                client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
-                completion = client.chat.completions.create(
-                    model=settings.OPENAI_MODEL,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    temperature=0.2
-                )
-                response_text = completion.choices[0].message.content
-            except Exception as e:
-                logger.warning(f"OpenAI API call failed ({e}). Using SentinelAI security engine response.")
+        # Try all LLM providers
+        response_text = _call_llm(system_prompt, user_prompt)
+
 
         if not response_text:
             # Deterministic, high-quality DevSecOps explanation engine fallback

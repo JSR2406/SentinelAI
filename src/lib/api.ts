@@ -11,6 +11,8 @@ export interface Repository {
   url: string;
   branch: string;
   createdAt: string;
+  // Backend may return snake_case; we handle both
+  created_at?: string;
 }
 
 export interface ScanStatusResponse {
@@ -114,7 +116,13 @@ class SentinelAPIClient {
       headers: this.getHeaders(token),
     });
     if (!res.ok) throw new Error("Failed to fetch repositories");
-    return res.json();
+    const data = await res.json();
+    // Normalize snake_case dates from backend to camelCase
+    data.repositories = (data.repositories || []).map((r: any) => ({
+      ...r,
+      createdAt: r.createdAt || r.created_at || new Date().toISOString(),
+    }));
+    return data;
   }
 
   /** Delete repository */
@@ -134,8 +142,13 @@ class SentinelAPIClient {
       headers: this.getHeaders(token),
       body: JSON.stringify({ repoId }),
     });
-    if (!res.ok) throw new Error("Failed to queue scan job");
-    return res.json();
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: `Scan failed (HTTP ${res.status})` }));
+      throw new Error(err.detail || `Failed to queue scan job (HTTP ${res.status})`);
+    }
+    const data = await res.json();
+    // Normalize response field names (backend returns scanId)
+    return { scanId: data.scanId || data.scan_id, status: data.status };
   }
 
   /** Check scan status */
