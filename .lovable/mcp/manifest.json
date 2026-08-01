@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "sdk_version": "0.26.1",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://vqaxuzqxtpsdwfkiooob.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "sentinelai-landing-page",
+      "version": "0.1.0",
+      "title": "SentinelAI Landing Page"
+    },
+    "tools": [
+      {
+        "name": "list_repositories",
+        "title": "List monitored repositories",
+        "description": "List the repositories SentinelAI monitors, with language, branch, scan status and issue counts by severity.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "status": {
+              "description": "Only return repositories with this scan status.",
+              "type": "string",
+              "enum": [
+                "Critical",
+                "Warning",
+                "Passing"
+              ]
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_findings",
+        "title": "List security findings",
+        "description": "List SentinelAI security findings grouped by category (Secrets, Dependencies, Authentication, Cloud, Database, Containers), optionally filtered by category or severity.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "category": {
+              "description": "Category name, e.g. 'Secrets' or 'Dependencies'.",
+              "type": "string"
+            },
+            "severity": {
+              "description": "Only return findings at this severity.",
+              "type": "string",
+              "enum": [
+                "critical",
+                "high",
+                "medium",
+                "low"
+              ]
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_attack_path",
+        "title": "Get the top exploitable attack path",
+        "description": "Return SentinelAI's highest-risk attack path — the chain of steps from repository to business impact — plus the overall severity breakdown.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_profile",
+        "title": "Get my SentinelAI profile",
+        "description": "Read the signed-in user's SentinelAI profile (display name, company, job title).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "update_profile",
+        "title": "Update my SentinelAI profile",
+        "description": "Update the signed-in user's display name, company, or job title.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "display_name": {
+              "description": "New display name.",
+              "type": "string",
+              "minLength": 1
+            },
+            "company": {
+              "description": "Company or organization name.",
+              "type": "string"
+            },
+            "job_title": {
+              "description": "Job title, e.g. 'Security Engineer'.",
+              "type": "string"
+            }
+          }
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

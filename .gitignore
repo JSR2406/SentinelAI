@@ -1,0 +1,12 @@
+node_modules/
+.output/
+.wrangler/
+dist/
+.env
+*.db
+__pycache__/
+.venv/
+*.pyc
+.pytest_cache/
+sentinel_db.sqlite
+backend/migrations/__pycache__/
