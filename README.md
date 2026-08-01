@@ -4,7 +4,7 @@
 
 ## Live Demo
 
-- **Frontend:** https://sentinelai-security.vercel.app
+- **Frontend:** https://sentinel-ai-kappa-five.vercel.app
 - **Backend API Docs:** http://localhost:8001/docs (local) 
 - **GitHub Repo:** https://github.com/JSR2406/SentinelAI
 
