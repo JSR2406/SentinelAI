@@ -5,6 +5,13 @@ import { AppShell } from "@/components/app/AppShell";
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ location }) => {
+    // Check for our frontend demo user fallback first
+    if (typeof window !== "undefined") {
+      const demoUser = sessionStorage.getItem("sentinel:demo_user");
+      if (demoUser) {
+        return { user: JSON.parse(demoUser) };
+      }
+    }
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user)
       throw redirect({ to: "/auth/login", search: { next: location.href } });
