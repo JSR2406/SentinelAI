@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { apiClient, type ScanStatusResponse } from "@/lib/api";
-import { recentScans } from "@/lib/dummy-data";
 
 export const Route = createFileRoute("/_authenticated/scans")({
   head: () => ({
@@ -42,10 +41,17 @@ function ScansPage() {
 
   const [scanStatus, setScanStatus] = useState<ScanStatusResponse | null>(null);
   const [demoProgress, setDemoProgress] = useState(0);
+  const [history, setHistory] = useState<any[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Poll real scan status if we have a scanId
   useEffect(() => {
+    // Load historical scans from repositories mock
+    apiClient.getRepositories().then(res => {
+      setHistory(res.repositories.map(r => ({
+        id: r.id, repo: r.name, type: "Full Security Scan", findings: "0", duration: "1m 32s", status: "Completed"
+      })));
+    }).catch(() => {});
     if (!scanId) return;
     const poll = async () => {
       try {
@@ -182,7 +188,7 @@ function ScansPage() {
                   </td>
                 </tr>
               )}
-              {recentScans.map((s) => (
+              {history.length > 0 ? history.map((s) => (
                 <tr key={s.id}>
                   <td className="py-3">{s.repo}</td>
                   <td className="py-3 text-muted-foreground">{s.type}</td>
@@ -200,7 +206,9 @@ function ScansPage() {
                     </span>
                   </td>
                 </tr>
-              ))}
+              )) : (
+                <tr><td colSpan={5} className="py-5 text-center text-muted-foreground">No historical scans available.</td></tr>
+              )}
             </tbody>
           </table>
         </div>

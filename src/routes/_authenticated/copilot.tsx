@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Send, Sparkles } from "lucide-react";
-import { conversations } from "@/lib/dummy-data";
 import { apiClient } from "@/lib/api";
 
 export const Route = createFileRoute("/_authenticated/copilot")({
@@ -36,6 +35,11 @@ function CopilotPage() {
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  
+  const [conversations, setConversations] = useState([
+    { id: "1", title: "payments-api #4821", when: "Today at 10:42 AM" },
+    { id: "2", title: "auth-service #110", when: "Yesterday" }
+  ]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
