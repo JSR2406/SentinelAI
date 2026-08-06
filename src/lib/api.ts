@@ -15,6 +15,34 @@ export interface Repository {
   created_at?: string;
 }
 
+export interface ScanListItem {
+  scanId: string;
+  repoId: string;
+  repoName: string;
+  status: string;
+  score?: number;
+  started_at: string;
+  completed_at?: string;
+  findingsCount: number;
+  criticalCount: number;
+}
+
+export interface ScanListResponse {
+  total: number;
+  scans: ScanListItem[];
+}
+
+export interface DashboardStats {
+  repoCount: number;
+  scanCount: number;
+  latestScore: number;
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  recentScans: ScanListItem[];
+}
+
 export interface ScanStatusResponse {
   scanId: string;
   status: "PENDING" | "CLONING" | "SCANNING" | "PROCESSING" | "GRAPHING" | "AI_ANALYSIS" | "COMPLETED" | "FAILED";
@@ -59,30 +87,41 @@ export interface AIFixResponse {
   status: string;
 }
 
-export interface SecurityReportResponse {
-  scanId: string;
-  repoName: string;
-  status: string;
-  summary: {
-    totalFindings: number;
+export interface SecurityReportIssue {
+  id: string;
+  tool: string;
+  file_path?: string;
+  line?: number;
+  col?: number;
+  type?: string;
+  severity: string;
+  title: string;
+  description?: string;
+  recommendation?: string;
+}
+
+export interface SecurityReportSummary {
+  totalFindings: number;
+  severityCounts: {
     critical: number;
     high: number;
     medium: number;
     low: number;
-    riskScore: number;
+    info: number;
   };
-  issues: Array<{
-    id: string;
-    tool: string;
-    filePath: string;
-    line: number;
-    col: number;
-    type: string;
-    severity: string;
-    title: string;
-    description: string;
-    recommendation: string;
-  }>;
+  scannersRun: string[];
+  riskScore: number;
+}
+
+export interface SecurityReportResponse {
+  scanId: string;
+  repoId: string;
+  repoName: string;
+  repoUrl: string;
+  status: string;
+  summary: SecurityReportSummary;
+  findings: SecurityReportIssue[];
+  recommendations: string[];
 }
 
 class SentinelAPIClient {
@@ -157,6 +196,24 @@ class SentinelAPIClient {
       headers: this.getHeaders(token),
     });
     if (!res.ok) throw new Error("Failed to fetch scan status");
+    return res.json();
+  }
+
+  /** List all scans for user */
+  async getScans(token?: string): Promise<ScanListResponse> {
+    const res = await fetch(`${API_BASE_URL}/api/v1/scan`, {
+      headers: this.getHeaders(token),
+    });
+    if (!res.ok) throw new Error("Failed to fetch scans");
+    return res.json();
+  }
+
+  /** Get dashboard stats (aggregated across all repos and scans) */
+  async getDashboardStats(token?: string): Promise<DashboardStats> {
+    const res = await fetch(`${API_BASE_URL}/api/v1/scan/dashboard/stats`, {
+      headers: this.getHeaders(token),
+    });
+    if (!res.ok) throw new Error("Failed to fetch dashboard stats");
     return res.json();
   }
 

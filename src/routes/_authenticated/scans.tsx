@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Check, Loader2 } from "lucide-react";
-import { apiClient, type ScanStatusResponse } from "@/lib/api";
+import { Check, Loader2, FileText } from "lucide-react";
+import { apiClient, type ScanStatusResponse, type ScanListItem } from "@/lib/api";
 
 export const Route = createFileRoute("/_authenticated/scans")({
   head: () => ({
@@ -34,6 +34,12 @@ const statusToStep: Record<string, number> = {
   FAILED: 7,
 };
 
+const sevBadge = (status: string) => {
+  if (status === "COMPLETED") return "bg-brand-emerald/15 text-brand-emerald";
+  if (status === "FAILED") return "bg-destructive/15 text-destructive";
+  return "bg-chart-4/15 text-chart-4";
+};
+
 function ScansPage() {
   // Check if we got a scanId from navigation
   const search = (Route.useSearch() as any) || {};
@@ -41,17 +47,22 @@ function ScansPage() {
 
   const [scanStatus, setScanStatus] = useState<ScanStatusResponse | null>(null);
   const [demoProgress, setDemoProgress] = useState(0);
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<ScanListItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Load real scan history
+  useEffect(() => {
+    setHistoryLoading(true);
+    apiClient
+      .getScans()
+      .then((res) => setHistory(res.scans))
+      .catch(() => setHistory([]))
+      .finally(() => setHistoryLoading(false));
+  }, [scanId]);
 
   // Poll real scan status if we have a scanId
   useEffect(() => {
-    // Load historical scans from repositories mock
-    apiClient.getRepositories().then(res => {
-      setHistory(res.repositories.map(r => ({
-        id: r.id, repo: r.name, type: "Full Security Scan", findings: "0", duration: "1m 32s", status: "Completed"
-      })));
-    }).catch(() => {});
     if (!scanId) return;
     const poll = async () => {
       try {
@@ -59,6 +70,8 @@ function ScansPage() {
         setScanStatus(status);
         if (status.status === "COMPLETED" || status.status === "FAILED") {
           if (pollRef.current) clearInterval(pollRef.current);
+          // Refresh history after scan completes
+          apiClient.getScans().then((res) => setHistory(res.scans)).catch(() => {});
         }
       } catch {
         // backend unreachable
@@ -91,10 +104,14 @@ function ScansPage() {
   const repoLabel = scanStatus ? `Scan ${scanId?.slice(0, 8)}…` : "payments-api";
   const branchLabel = scanStatus ? `Status: ${scanStatus.status}` : "main · full security scan";
 
+  // Find the scan in history to get the repo name
+  const activeScanHistory = scanId ? history.find((s) => s.scanId === scanId) : null;
+  const displayRepoLabel = activeScanHistory?.repoName || repoLabel;
+
   return (
     <div className="grid gap-5">
       <header>
-        <h1 className="text-2xl font-semibold sm:text-3xl">Scanning {repoLabel}</h1>
+        <h1 className="text-2xl font-semibold sm:text-3xl">Scanning {displayRepoLabel}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{branchLabel}</p>
       </header>
 
@@ -152,62 +169,109 @@ function ScansPage() {
             );
           })}
         </ol>
+
+        {scanStatus?.status === "COMPLETED" && scanId && (
+          <div className="mt-4 flex justify-end">
+            <Link
+              to="/reports"
+              search={{ scanId } as any}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-4 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90"
+            >
+              <FileText className="h-4 w-4" />
+              View Full Report
+            </Link>
+          </div>
+        )}
       </div>
 
       <div className="glass rounded-2xl p-5">
         <h2 className="text-sm font-semibold">Scan history</h2>
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[520px] text-sm">
+          <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="text-left text-xs text-muted-foreground">
                 <th className="pb-3 font-medium">Repository</th>
-                <th className="pb-3 font-medium">Type</th>
                 <th className="pb-3 font-medium">Findings</th>
-                <th className="pb-3 font-medium">Duration</th>
+                <th className="pb-3 font-medium">Critical</th>
+                <th className="pb-3 font-medium">Score</th>
+                <th className="pb-3 font-medium">Date</th>
                 <th className="pb-3 font-medium">Status</th>
+                <th className="pb-3 font-medium">Report</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {/* Live scan entry at top */}
               {scanStatus && (
                 <tr>
-                  <td className="py-3">{repoLabel}</td>
-                  <td className="py-3 text-muted-foreground">Full Security Scan</td>
+                  <td className="py-3">{displayRepoLabel}</td>
                   <td className="py-3 text-muted-foreground">—</td>
+                  <td className="py-3 text-muted-foreground">—</td>
+                  <td className="py-3 text-muted-foreground">
+                    {scanStatus.status === "COMPLETED" ? `${scanStatus.score?.toFixed(0)}/100` : "—"}
+                  </td>
                   <td className="py-3 text-muted-foreground">Live</td>
                   <td className="py-3">
-                    <span className={`rounded-full px-2.5 py-1 text-[11px] ${
-                      scanStatus.status === "COMPLETED"
-                        ? "bg-brand-emerald/15 text-brand-emerald"
-                        : scanStatus.status === "FAILED"
-                          ? "bg-destructive/15 text-destructive"
-                          : "bg-chart-4/15 text-chart-4"
-                    }`}>
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] ${sevBadge(scanStatus.status)}`}>
                       {scanStatus.status}
                     </span>
                   </td>
-                </tr>
-              )}
-              {history.length > 0 ? history.map((s) => (
-                <tr key={s.id}>
-                  <td className="py-3">{s.repo}</td>
-                  <td className="py-3 text-muted-foreground">{s.type}</td>
-                  <td className="py-3 text-muted-foreground">{s.findings}</td>
-                  <td className="py-3 text-muted-foreground">{s.duration}</td>
                   <td className="py-3">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-[11px] ${
-                        s.status === "Failed"
-                          ? "bg-destructive/15 text-destructive"
-                          : "bg-brand-emerald/15 text-brand-emerald"
-                      }`}
-                    >
-                      {s.status}
-                    </span>
+                    {scanStatus.status === "COMPLETED" && (
+                      <Link
+                        to="/reports"
+                        search={{ scanId } as any}
+                        className="text-xs text-brand-emerald hover:underline"
+                      >
+                        View
+                      </Link>
+                    )}
                   </td>
                 </tr>
-              )) : (
-                <tr><td colSpan={5} className="py-5 text-center text-muted-foreground">No historical scans available.</td></tr>
+              )}
+              {historyLoading ? (
+                <tr>
+                  <td colSpan={7} className="py-5 text-center text-muted-foreground">
+                    <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+                  </td>
+                </tr>
+              ) : history.length > 0 ? (
+                history
+                  .filter((s) => s.scanId !== scanId) // don't duplicate the live scan
+                  .map((s) => (
+                    <tr key={s.scanId}>
+                      <td className="py-3">{s.repoName}</td>
+                      <td className="py-3 text-muted-foreground">{s.findingsCount}</td>
+                      <td className="py-3 text-muted-foreground">{s.criticalCount}</td>
+                      <td className="py-3 text-muted-foreground">
+                        {s.score != null ? `${s.score.toFixed(0)}/100` : "—"}
+                      </td>
+                      <td className="py-3 text-muted-foreground">
+                        {s.started_at ? new Date(s.started_at).toLocaleDateString() : "—"}
+                      </td>
+                      <td className="py-3">
+                        <span className={`rounded-full px-2.5 py-1 text-[11px] ${sevBadge(s.status)}`}>
+                          {s.status}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        {s.status === "COMPLETED" && (
+                          <Link
+                            to="/reports"
+                            search={{ scanId: s.scanId } as any}
+                            className="text-xs text-brand-emerald hover:underline"
+                          >
+                            View
+                          </Link>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+              ) : (
+                <tr>
+                  <td colSpan={7} className="py-5 text-center text-muted-foreground">
+                    No historical scans available.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
